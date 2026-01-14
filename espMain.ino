@@ -2,6 +2,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <LittleFS.h> //pour la mémoire flash
 
 #define SERVICE_UUID        "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 #define CHAR_UUID_DATA      "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
@@ -48,8 +49,33 @@ struct dataType {
   uint64_t horodatage; //année mois jour heure minute
 };
 
-// Tableau de 9000 éléments
-dataType dataArray[9000];
+void ecrireRandomDansLittleFS() {
+  File file = LittleFS.open("/data.bin", "w");
+  if (!file) {
+    Serial.println("Erreur ouverture fichier");
+    return;
+  }
+
+  dataType d;
+
+  for (int i = 0; i < 9000; i++) {
+    d.tAp    = random(0, 101);
+    d.tMat   = random(0, 101);
+    d.tExt   = random(0, 101);
+    d.humAp  = random(0, 101);
+    d.humMat = random(0, 101);
+    d.humExt = random(0, 101);
+    d.oxygen = random(0, 101);
+    d.bat    = random(0, 101);
+    d.horodatage = millis();
+
+    file.write((uint8_t*)&d, sizeof(dataType));
+  }
+
+  file.close();
+  Serial.println("9000 entrées écrites dans LittleFS");
+}
+
 
 /* ===== Setup ===== */
 void setup() {
@@ -76,6 +102,14 @@ void setup() {
   advertising->start();
 
   Serial.println("BioLogic BLE prêt");
+
+  //initialisation littleFS
+  if (!LittleFS.begin(true)) {
+  Serial.println("Erreur LittleFS");
+  return;
+  }
+  Serial.println("LittleFS monté");
+  ecrireRandomDansLittleFS();
 }
 
 /* ===== Loop ===== */
@@ -101,7 +135,7 @@ void loop() {
     char payload[150];
     sprintf(payload,
       "<{\"tap\":%.1f,\"o2ap\":%.1f,\"hap\":%.1f,\"tmat\":%.1f,\"hmat\":%.1f,\"tex\":%.1f,\"hex\":%.1f}>",
-      temperatureApp, oxygen, humidityApp, temperatureMat, humidityMat, temperatureExt, humidityExt, t
+      temperatureApp, oxygen, humidityApp, temperatureMat, humidityMat, temperatureExt, humidityExt
     );
 
     sendBLE(payload);
