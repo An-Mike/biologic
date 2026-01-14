@@ -76,6 +76,9 @@ void ecrireRandomDansLittleFS() {
   Serial.println("9000 entrées écrites dans LittleFS");
 }
 
+File dataFile;
+unsigned long lastReadTime = 0;
+const unsigned long READ_INTERVAL = 1000; // 1 seconde
 
 /* ===== Setup ===== */
 void setup() {
@@ -110,10 +113,46 @@ void setup() {
   }
   Serial.println("LittleFS monté");
   ecrireRandomDansLittleFS();
+
+  dataFile = LittleFS.open("/data.bin", "r");
+  if (!dataFile) {
+      Serial.println("Erreur ouverture data.bin en lecture");
+  } else {
+      Serial.println("Lecture data.bin démarrée");
+  }
 }
 
 /* ===== Loop ===== */
 void loop() {
+  // ===== Lecture LittleFS toutes les secondes =====
+  if (dataFile && millis() - lastReadTime >= READ_INTERVAL) {
+    lastReadTime = millis();
+
+    dataType d;
+
+    if (dataFile.read((uint8_t*)&d, sizeof(dataType)) == sizeof(dataType)) {
+
+      Serial.println("----- Donnée LittleFS -----");
+      Serial.print("tAp       : "); Serial.println(d.tAp);
+      Serial.print("tMat      : "); Serial.println(d.tMat);
+      Serial.print("tExt      : "); Serial.println(d.tExt);
+
+      Serial.print("humAp     : "); Serial.println(d.humAp);
+      Serial.print("humMat    : "); Serial.println(d.humMat);
+      Serial.print("humExt    : "); Serial.println(d.humExt);
+
+      Serial.print("Oxygen    : "); Serial.println(d.oxygen);
+      Serial.print("Batterie  : "); Serial.print(d.bat); Serial.println(" %");
+
+      Serial.print("Horodatage: "); Serial.println((unsigned long)d.horodatage);
+      Serial.println("---------------------------\n");
+
+    } else {
+      // Fin du fichier → retour au début
+      Serial.println("Fin fichier atteinte, retour au début");
+      dataFile.seek(0);
+    }
+  }
   if (deviceConnected) {
     //bac d'apport
     float temperatureApp = random(300, 700) / 10.0;   // 30 à 70 °C
