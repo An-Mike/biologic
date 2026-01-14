@@ -1,23 +1,10 @@
-
-//include pour le BLE
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-//UUID BLE
 #define SERVICE_UUID        "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 #define CHAR_UUID_DATA      "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
-
-//include pour la mémoire flash
-#include "FS.h"
-#include "LittleFS.h"
-#define COLS 10
-#define ROWS 9000
-#define FILE_NAME "/tableau.bin"
-
-
-
 
 BLECharacteristic *dataChar;
 bool deviceConnected = false;
@@ -49,53 +36,24 @@ void sendBLE(const char* msg) {
   }
 }
 
+struct dataType {
+  uint16_t tAp; //température bac d'apport
+  uint16_t tMat; 
+  uint16_t tExt;
+  uint16_t humAp; //humidité bac d'apport
+  uint16_t humMat;
+  uint16_t humExt;
+  uint16_t oxygen; //oxygen
+  uint8_t bat; //niveau de la batterie
+  uint64_t horodatage; //année mois jour heure minute
+};
+
+// Tableau de 9000 éléments
+dataType dataArray[9000];
 
 /* ===== Setup ===== */
 void setup() {
   Serial.begin(115200);
-
-  // Initialisation LittleFS
-  if (!LittleFS.begin(true)) {
-    Serial.println("Erreur LittleFS !");
-    return;
-  }
-
-  Serial.println("LittleFS monté avec succès");
-
-  // Ouvrir le fichier en écriture (écrase s'il existe)
-  File file = LittleFS.open(FILE_NAME, FILE_WRITE);
-  if (!file) {
-    Serial.println("Impossible de créer le fichier");
-    return;
-  }
-
-  // Initialisation du générateur aléatoire
-  randomSeed(esp_random());
-
-  float value;
-
-  //
-  struct data {
-  uint16_t tap, tmat, tex, hap, hmat, hex, o2, day, month, bat
-  };
-
-  // Remplissage du tableau et écriture en flash
-  for (int row = 0; row < ROWS; row++) {
-    for (int col = 0; col < COLS; col++) {
-      value = random(0, 10000) / 100.0f;  // float entre 0.00 et 100.00
-      file.write((uint8_t*)&value, sizeof(float));
-    }
-  }
-
-  file.close();
-  Serial.println("Tableau créé et stocké dans LittleFS");
-
-  // Affichage de la taille du fichier
-  File check = LittleFS.open(FILE_NAME, FILE_READ);
-  Serial.print("Taille du fichier : ");
-  Serial.print(check.size());
-  Serial.println(" octets");
-  check.close();
 
   BLEDevice::init("BioLogic");
 
@@ -143,12 +101,12 @@ void loop() {
     char payload[150];
     sprintf(payload,
       "<{\"tap\":%.1f,\"o2ap\":%.1f,\"hap\":%.1f,\"tmat\":%.1f,\"hmat\":%.1f,\"tex\":%.1f,\"hex\":%.1f}>",
-      temperatureApp, oxygen, humidityApp, temperatureMat, humidityMat, temperatureExt, humidityExt
+      temperatureApp, oxygen, humidityApp, temperatureMat, humidityMat, temperatureExt, humidityExt, t
     );
 
-    sendBLE(payload); //envoi d'un paquet
+    sendBLE(payload);
 
     Serial.println(payload);
-    delay(500);
+    delay(2000);
   }
 }
